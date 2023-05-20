@@ -4,7 +4,6 @@
 //====================================
 // Input on pin D5
 //====================================
-#include <Wire.h>
 
 #define PLOTTING true
 
@@ -19,7 +18,13 @@ void setup()
   Serial.begin(112500);
   delay(100);
   Serial.println("Fan_test RPM ");
-//  analogReference(INTERNAL);
+//  analogWrite(3, 128);
+//  analogWrite(5, 128);
+  analogWrite(6, 128);    //To Fan PWM.
+//  analogWrite(9, 128);
+//  analogWrite(10, 128);
+//  analogWrite(11, 128);
+  //  analogReference(INTERNAL);
   //  Make a single read
   startCount(1000);
   while (!nextCount) {}
@@ -36,7 +41,7 @@ void loop()
   Serial.print("Frequency (Hz): ");
   Serial.print(totalCounts);
   Serial.print(", RMP: ");
-#endif  
+#endif
   Serial.print("0, ");  //Print base line at zero
   Serial.print(totalCounts * 30);
   Serial.println();

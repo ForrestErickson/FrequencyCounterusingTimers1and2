@@ -18,6 +18,8 @@
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 
+int fanPWMvalue = 128;
+
 //For frequency counter
 volatile unsigned long totalCounts;
 volatile bool finishedCount;
@@ -36,7 +38,7 @@ void setup()
   //  analogWrite(10, 128);
   //  analogWrite(11, 128);
   //  analogReference(INTERNAL);
-  analogWrite(6, 128);    //To Fan PWM.
+  analogWrite(6, (255-fanPWMvalue));    //To Fan PWM.
 
 
   //  Make a single read
@@ -57,7 +59,9 @@ void loop()
     Serial.print(totalCounts);
     Serial.print(", RMP: ");
 #endif
-    Serial.print("0, ");  //Print base line at zero
+//    Serial.print("0, ");  //Print base line at zero
+    Serial.print(fanPWMvalue);
+    Serial.print(", ");  //Print base line at zero
     Serial.print(totalCounts * 30);
     Serial.println();
 
@@ -65,9 +69,16 @@ void loop()
 
   // print the string when a newline arrives:
   if (stringComplete) {
+    int fanPWMset = 0;
     Serial.println(inputString);
-    analogWrite(6, (255-inputString.toInt()));    //To Fan PWM.
-//    analogWrite(6, Serial.parseInt());    //To Fan PWM.
+    //    analogWrite(6, (255-inputString.toInt()));    //To Fan PWM.
+    fanPWMvalue = inputString.toInt();
+    fanPWMset = 255 - fanPWMvalue;
+    fanPWMset = max(fanPWMset, 0);
+    fanPWMset = min(fanPWMset, 255);
+    analogWrite(6, fanPWMset );  //To Fan PWM.
+
+    //    analogWrite(6, Serial.parseInt());    //To Fan PWM.
     // clear the string:
     inputString = "";
     stringComplete = false;

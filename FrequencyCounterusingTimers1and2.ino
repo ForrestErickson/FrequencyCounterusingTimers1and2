@@ -18,8 +18,8 @@ void setup()
 {
   Serial.begin(112500);
   delay(100);
-  Serial.print("RPM,");
-  analogReference(INTERNAL);
+  Serial.println("Fan_test RPM ");
+//  analogReference(INTERNAL);
   //  Make a single read
   startCount(1000);
   while (!nextCount) {}
@@ -37,6 +37,7 @@ void loop()
   Serial.print(totalCounts);
   Serial.print(", RMP: ");
 #endif  
+  Serial.print("0, ");  //Print base line at zero
   Serial.print(totalCounts * 30);
   Serial.println();
 

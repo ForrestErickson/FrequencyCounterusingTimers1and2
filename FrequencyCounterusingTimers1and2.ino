@@ -4,7 +4,7 @@
 // Information on Arduino UNO counter use here: https://docs.arduino.cc/tutorials/generic/secrets-of-arduino-pwm
 //====================================
 // Input on pin D5
-// Output PWM to fan on D6
+// Output PWM to fan on D6 through a transistor which inverts the PWM.
 //====================================
 
 #define PROG_NAME "**** FrequencyCounterusingTimers1and2 ****"
@@ -18,7 +18,7 @@
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 
-int fanPWMvalue = 128;
+int fanPWMvalue = 0;
 
 //For frequency counter
 volatile unsigned long totalCounts;
@@ -38,12 +38,12 @@ void setup()
   //  analogWrite(10, 128);
   //  analogWrite(11, 128);
   //  analogReference(INTERNAL);
-  analogWrite(6, (255-fanPWMvalue));    //To Fan PWM.
-
-
-  //  Make a single read
+  analogWrite(6, (255 - fanPWMvalue));  //To Fan PWM.
+  delay(1000); //So that fan can get to set speed.
+  //  Make a single read to get the count setup.
   startCount(1000);
   while (!finishedCount) {}
+  startCount(1000);
 }
 //=================================================================
 void loop()
@@ -51,15 +51,6 @@ void loop()
 
   while (finishedCount) {
     startCount(1000);
-#ifndef PLOTTING
-    Serial.print("A0=: ");
-    Serial.print(analogRead(A0));
-    Serial.print(", ");
-    Serial.print("Frequency (Hz): ");
-    Serial.print(totalCounts);
-    Serial.print(", RMP: ");
-#endif
-//    Serial.print("0, ");  //Print base line at zero
     Serial.print(fanPWMvalue);
     Serial.print(", ");  //Print base line at zero
     Serial.print(totalCounts * 30);
@@ -71,20 +62,18 @@ void loop()
   if (stringComplete) {
     int fanPWMset = 0;
     Serial.println(inputString);
-    //    analogWrite(6, (255-inputString.toInt()));    //To Fan PWM.
+    
     fanPWMvalue = inputString.toInt();
-    fanPWMset = 255 - fanPWMvalue;
-    fanPWMset = max(fanPWMset, 0);
-    fanPWMset = min(fanPWMset, 255);
+    fanPWMvalue = max(fanPWMvalue, 0);
+    fanPWMvalue = min(fanPWMvalue, 255);
+    fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
     analogWrite(6, fanPWMset );  //To Fan PWM.
-
-    //    analogWrite(6, Serial.parseInt());    //To Fan PWM.
     // clear the string:
     inputString = "";
     stringComplete = false;
-  }
+  }//end processing string.
 
-}
+}//end of loop()
 //=================================================================
 void startCount(unsigned int period)
 {

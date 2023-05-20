@@ -19,7 +19,17 @@ String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 
 int fanPWMvalue = 0;
+void updateFanPWM(String inputString){
+    int fanPWMset = 0;
+    fanPWMvalue = inputString.toInt();
+    fanPWMvalue = max(fanPWMvalue, 0);
+    fanPWMvalue = min(fanPWMvalue, 255);
+    fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
+    analogWrite(6, fanPWMset );  //To Fan PWM.
+  
+}//end update fan pwm
 
+    
 //For frequency counter
 volatile unsigned long totalCounts;
 volatile bool finishedCount;
@@ -31,13 +41,7 @@ void setup()
 {
   Serial.begin(BAUDRATE);
   delay(100);
-  Serial.println("Fan_test RPM ");
-  //  analogWrite(3, 128);
-  //  analogWrite(5, 128);
-  //  analogWrite(9, 128);
-  //  analogWrite(10, 128);
-  //  analogWrite(11, 128);
-  //  analogReference(INTERNAL);
+  Serial.println("Fan_test RPM "); 
   analogWrite(6, (255 - fanPWMvalue));  //To Fan PWM.
   delay(1000); //So that fan can get to set speed.
   //  Make a single read to get the count setup.
@@ -51,24 +55,17 @@ void loop()
 
   while (finishedCount) {
     startCount(1000);
-    Serial.print(fanPWMvalue);
-    Serial.print(", ");  //Print base line at zero
+    Serial.print(fanPWMvalue*10);
+    Serial.print(" ");  //Print base line at zero
     Serial.print(totalCounts * 30);
     Serial.println();
-
   }
 
-  // print the string when a newline arrives:
+  // Get user input, a string when a newline arrives:
   if (stringComplete) {
-    int fanPWMset = 0;
-    Serial.println(inputString);
-    
-    fanPWMvalue = inputString.toInt();
-    fanPWMvalue = max(fanPWMvalue, 0);
-    fanPWMvalue = min(fanPWMvalue, 255);
-    fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
-    analogWrite(6, fanPWMset );  //To Fan PWM.
-    // clear the string:
+//    Serial.println(inputString);
+
+    updateFanPWM(inputString);
     inputString = "";
     stringComplete = false;
   }//end processing string.

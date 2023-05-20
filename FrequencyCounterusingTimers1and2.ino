@@ -5,52 +5,62 @@
 // Input on pin D5
 //====================================
 
+#define PROG_NAME "**** FrequencyCounterusingTimers1and2 ****"
+#define VERSION "Rev: 0.2"
+#define BAUDRATE 115200
+
+
 #define PLOTTING true
 
 volatile unsigned long totalCounts;
-volatile bool nextCount;
+volatile bool finishedCount;
 volatile unsigned long Timer1overflowCounts;
 volatile unsigned long overflowCounts;
 unsigned int counter, countPeriod;
 //=================================================================
 void setup()
 {
-  Serial.begin(112500);
+  Serial.begin(BAUDRATE);
   delay(100);
   Serial.println("Fan_test RPM ");
-//  analogWrite(3, 128);
-//  analogWrite(5, 128);
-  analogWrite(6, 128);    //To Fan PWM.
-//  analogWrite(9, 128);
-//  analogWrite(10, 128);
-//  analogWrite(11, 128);
+  //  analogWrite(3, 128);
+  //  analogWrite(5, 128);
+  //  analogWrite(9, 128);
+  //  analogWrite(10, 128);
+  //  analogWrite(11, 128);
   //  analogReference(INTERNAL);
+  analogWrite(6, 128);    //To Fan PWM.
+
+
   //  Make a single read
   startCount(1000);
-  while (!nextCount) {}
+  while (!finishedCount) {}
 }
 //=================================================================
 void loop()
 {
-  startCount(1000);
-  while (!nextCount) {}
+
+  while (finishedCount) {
+    startCount(1000);
 #ifndef PLOTTING
-  Serial.print("A0=: ");
-  Serial.print(analogRead(A0));
-  Serial.print(", ");
-  Serial.print("Frequency (Hz): ");
-  Serial.print(totalCounts);
-  Serial.print(", RMP: ");
+    Serial.print("A0=: ");
+    Serial.print(analogRead(A0));
+    Serial.print(", ");
+    Serial.print("Frequency (Hz): ");
+    Serial.print(totalCounts);
+    Serial.print(", RMP: ");
 #endif
-  Serial.print("0, ");  //Print base line at zero
-  Serial.print(totalCounts * 30);
-  Serial.println();
+    Serial.print("0, ");  //Print base line at zero
+    Serial.print(totalCounts * 30);
+    Serial.println();
+
+  }
 
 }
 //=================================================================
 void startCount(unsigned int period)
 {
-  nextCount = false;
+  finishedCount = false;
   counter = 0;
   Timer1overflowCounts = 0;
   countPeriod = period;
@@ -86,5 +96,5 @@ ISR (TIMER2_COMPA_vect)
   TIMSK1 = 0; TIMSK2 = 0;   //Timer 1 & 2 disable interrupts
 
   totalCounts = (overflowCounts * 65536) + TCNT1;
-  nextCount = true;
+  finishedCount = true;
 }

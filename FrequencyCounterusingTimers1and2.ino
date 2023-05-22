@@ -11,7 +11,6 @@
 #define VERSION "Rev: 0.3"  //Add simple user interface, <0 to stop auto increment, > 255 to auto increment.
 #define BAUDRATE 115200
 
-
 #define PLOTTING true
 
 //For frequency counter
@@ -26,7 +25,7 @@ unsigned long lastINCtime = 0;
 unsigned long nextINCperiod = 10000;
 
 
-//For serial input
+//For serial input and user interface
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 bool autoIncerment = false;
@@ -40,6 +39,20 @@ void updateFanPWM(String inputString) {
   fanPWMvalue = min(fanPWMvalue, 255);
   fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
   analogWrite(6, fanPWMset );  //To Fan PWM.
+}//end update fan pwm
+
+//Set the value taking into account the inversion in the hardware over the range where fan is linear.
+void updatelinearFanPWM(String inputString) {
+  int fanPWMset = 0;
+  int fanPWMLINValue = 0;
+  const int LOWER_RPM = 70;
+  fanPWMvalue = inputString.toInt();
+  fanPWMvalue = max(fanPWMvalue, 0);
+  fanPWMvalue = min(fanPWMvalue, 255);
+
+  fanPWMLINValue = map(fanPWMvalue, 0, 255, LOWER_RPM, 255); //Map to linear range.
+  fanPWMset = 255 - fanPWMLINValue;    //Inverted PWM sense because of transistor on GPIO output.
+  analogWrite(6, fanPWMset);  //To Fan PWM.
 }//end update fan pwm
 
 
@@ -78,7 +91,8 @@ void loop()
   if (autoIncerment && (((millis() - lastINCtime) > nextINCperiod) || (millis() < lastINCtime)) ) {
     if (fanPWMvalue < 256) {
       fanPWMvalue = fanPWMvalue + 10;
-      updateFanPWM(String(fanPWMvalue));
+      //updateFanPWM(String(fanPWMvalue));
+      updatelinearFanPWM(String(fanPWMvalue));
     }
     lastINCtime = millis();
   }//end if time to increment
@@ -86,16 +100,17 @@ void loop()
   // Get user input, a string when a newline arrives:
   //Manages the state of auto incrementing.
   if (stringComplete) {
-    Serial.println(inputString);
+//    Serial.println(inputString);
     if (inputString.toInt() < 0) {
       autoIncerment = false; // set for
-      Serial.println("Set auto increment false");
+      //      Serial.println("Set auto increment false");
     }
     if (inputString.toInt() > 255) {
       autoIncerment = true; // set for
-      Serial.println("Set auto increment true");
+      //      Serial.println("Set auto increment true");
     } else {
-      updateFanPWM(inputString);
+      //updateFanPWM(inputString);
+      updatelinearFanPWM(inputString);
     }
     inputString = "";
     stringComplete = false;

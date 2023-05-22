@@ -31,25 +31,15 @@ String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 bool autoIncerment = false;
 
-//Set the value also  manages the state of auto incrementing. This may be spagetti.
+//Set the value taking into account the inversion in the hardware.
 int fanPWMvalue = 0;
 void updateFanPWM(String inputString) {
   int fanPWMset = 0;
-  if (inputString.toInt() <0){
-     autoIncerment = false; // set for 
-     Serial.println("Set auto increment false");
-  }
-  if (inputString.toInt() > 255){
-     autoIncerment = true; // set for 
-     Serial.println("Set auto increment true");
-  }else{
   fanPWMvalue = inputString.toInt();
   fanPWMvalue = max(fanPWMvalue, 0);
   fanPWMvalue = min(fanPWMvalue, 255);
   fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
-  analogWrite(6, fanPWMset );  //To Fan PWM.    
-  }
-
+  analogWrite(6, fanPWMset );  //To Fan PWM.
 }//end update fan pwm
 
 
@@ -84,7 +74,7 @@ void loop()
 
   //Lets ramp the PWM
   //Auto Increment every nextINCperiod
-//  autoIncerment = true; // set for 
+  //  autoIncerment = true; // set for
   if (autoIncerment && (((millis() - lastINCtime) > nextINCperiod) || (millis() < lastINCtime)) ) {
     if (fanPWMvalue < 256) {
       fanPWMvalue = fanPWMvalue + 10;
@@ -92,11 +82,21 @@ void loop()
     }
     lastINCtime = millis();
   }//end if time to increment
-  
+
   // Get user input, a string when a newline arrives:
+  //Manages the state of auto incrementing.
   if (stringComplete) {
-    //    Serial.println(inputString);
-    updateFanPWM(inputString);
+    Serial.println(inputString);
+    if (inputString.toInt() < 0) {
+      autoIncerment = false; // set for
+      Serial.println("Set auto increment false");
+    }
+    if (inputString.toInt() > 255) {
+      autoIncerment = true; // set for
+      Serial.println("Set auto increment true");
+    } else {
+      updateFanPWM(inputString);
+    }
     inputString = "";
     stringComplete = false;
   }//end processing string.

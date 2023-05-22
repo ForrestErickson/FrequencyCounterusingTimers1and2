@@ -8,40 +8,58 @@
 //====================================
 
 #define PROG_NAME "**** FrequencyCounterusingTimers1and2 ****"
-#define VERSION "Rev: 0.2"
+#define VERSION "Rev: 0.3"  //Add simple user interface, <0 to stop auto increment, > 255 to auto increment.
 #define BAUDRATE 115200
 
 
 #define PLOTTING true
 
-//For serial input
-String inputString = "";         // a String to hold incoming data
-bool stringComplete = false;  // whether the string is complete
-
-int fanPWMvalue = 0;
-void updateFanPWM(String inputString){
-    int fanPWMset = 0;
-    fanPWMvalue = inputString.toInt();
-    fanPWMvalue = max(fanPWMvalue, 0);
-    fanPWMvalue = min(fanPWMvalue, 255);
-    fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
-    analogWrite(6, fanPWMset );  //To Fan PWM.
-  
-}//end update fan pwm
-
-    
 //For frequency counter
 volatile unsigned long totalCounts;
 volatile bool finishedCount;
 volatile unsigned long Timer1overflowCounts;
 volatile unsigned long overflowCounts;
 unsigned int counter, countPeriod;
+
+//For the PWM sweep
+unsigned long lastINCtime = 0;
+unsigned long nextINCperiod = 10000;
+
+
+//For serial input
+String inputString = "";         // a String to hold incoming data
+bool stringComplete = false;  // whether the string is complete
+bool autoIncerment = false;
+
+//Set the value also  manages the state of auto incrementing. This may be spagetti.
+int fanPWMvalue = 0;
+void updateFanPWM(String inputString) {
+  int fanPWMset = 0;
+  if (inputString.toInt() <0){
+     autoIncerment = false; // set for 
+     Serial.println("Set auto increment false");
+  }
+  if (inputString.toInt() > 255){
+     autoIncerment = true; // set for 
+     Serial.println("Set auto increment true");
+  }else{
+  fanPWMvalue = inputString.toInt();
+  fanPWMvalue = max(fanPWMvalue, 0);
+  fanPWMvalue = min(fanPWMvalue, 255);
+  fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
+  analogWrite(6, fanPWMset );  //To Fan PWM.    
+  }
+
+}//end update fan pwm
+
+
 //=================================================================
 void setup()
 {
   Serial.begin(BAUDRATE);
   delay(100);
-  Serial.println("Fan_test RPM "); 
+  Serial.println("Fan_test RPM ");
+  Serial.println("3500 0 ");
   analogWrite(6, (255 - fanPWMvalue));  //To Fan PWM.
   delay(1000); //So that fan can get to set speed.
   //  Make a single read to get the count setup.
@@ -53,24 +71,38 @@ void setup()
 void loop()
 {
 
+
   while (finishedCount) {
     startCount(1000);
-    Serial.print(fanPWMvalue*10);
+    Serial.print(fanPWMvalue * 10);
     Serial.print(" ");  //Print base line at zero
     Serial.print(totalCounts * 30);
+    //    Serial.print(" ");  //Print base line at zero
+    //    Serial.print(analogRead(A0));
     Serial.println();
   }
 
+  //Lets ramp the PWM
+  //Auto Increment every nextINCperiod
+//  autoIncerment = true; // set for 
+  if (autoIncerment && (((millis() - lastINCtime) > nextINCperiod) || (millis() < lastINCtime)) ) {
+    if (fanPWMvalue < 256) {
+      fanPWMvalue = fanPWMvalue + 10;
+      updateFanPWM(String(fanPWMvalue));
+    }
+    lastINCtime = millis();
+  }//end if time to increment
+  
   // Get user input, a string when a newline arrives:
   if (stringComplete) {
-//    Serial.println(inputString);
-
+    //    Serial.println(inputString);
     updateFanPWM(inputString);
     inputString = "";
     stringComplete = false;
   }//end processing string.
-
 }//end of loop()
+
+
 //=================================================================
 void startCount(unsigned int period)
 {

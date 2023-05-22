@@ -5,13 +5,15 @@
 //====================================
 // Input on pin D5
 // Output PWM to fan on D6 through a transistor which inverts the PWM.
+// Simple user interface, Input on serial <0 to stop auto increment, > 255 to start auto increment.
 //====================================
 
 #define PROG_NAME "**** FrequencyCounterusingTimers1and2 ****"
-#define VERSION "Rev: 0.3"  //Add simple user interface, <0 to stop auto increment, > 255 to auto increment.
+#define VERSION "Rev: 0.3"  //
 #define BAUDRATE 115200
 
 #define PLOTTING true
+#define FAN_PIN 6
 
 //For frequency counter
 volatile unsigned long totalCounts;
@@ -21,51 +23,27 @@ volatile unsigned long overflowCounts;
 unsigned int counter, countPeriod;
 
 //For the PWM sweep
+int fanPWMvalue = 0;
 unsigned long lastINCtime = 0;
 unsigned long nextINCperiod = 10000;
-
 
 //For serial input and user interface
 String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 bool autoIncerment = false;
 
-//Set the value taking into account the inversion in the hardware.
-int fanPWMvalue = 0;
-void updateFanPWM(String inputString) {
-  int fanPWMset = 0;
-  fanPWMvalue = inputString.toInt();
-  fanPWMvalue = max(fanPWMvalue, 0);
-  fanPWMvalue = min(fanPWMvalue, 255);
-  fanPWMset = 255 - fanPWMvalue;    //Inverted PWM sense because of transistor on GPIO output.
-  analogWrite(6, fanPWMset );  //To Fan PWM.
-}//end update fan pwm
-
-//Set the value taking into account the inversion in the hardware over the range where fan is linear.
-void updatelinearFanPWM(String inputString) {
-  int fanPWMset = 0;
-  int fanPWMLINValue = 0;
-  const int LOWER_RPM = 70;
-  fanPWMvalue = inputString.toInt();
-  fanPWMvalue = max(fanPWMvalue, 0);
-  fanPWMvalue = min(fanPWMvalue, 255);
-
-  fanPWMLINValue = map(fanPWMvalue, 0, 255, LOWER_RPM, 255); //Map to linear range.
-  fanPWMset = 255 - fanPWMLINValue;    //Inverted PWM sense because of transistor on GPIO output.
-  analogWrite(6, fanPWMset);  //To Fan PWM.
-}//end update fan pwm
-
+//Functions below loop()
 
 //=================================================================
 void setup()
 {
+  analogWrite(FAN_PIN, (255 - fanPWMvalue));  //To Fan PWM.
   Serial.begin(BAUDRATE);
   delay(100);
-  Serial.println("Fan_test RPM ");
-  Serial.println("3500 0 ");
-  analogWrite(6, (255 - fanPWMvalue));  //To Fan PWM.
+  Serial.println("Fan_set*10 Measured_RPM ");
+  Serial.println("3500 0 ");    //Forces the Arduino IDE plot scale to 4000.
   delay(1000); //So that fan can get to set speed.
-  //  Make a single read to get the count setup.
+  //  Make a single frequencey read to get the count setup.
   startCount(1000);
   while (!finishedCount) {}
   startCount(1000);
@@ -73,25 +51,19 @@ void setup()
 //=================================================================
 void loop()
 {
-
-
+  //Send to Ploter the Fan set point and the measured tachometer in RPM.
   while (finishedCount) {
     startCount(1000);
-    Serial.print(fanPWMvalue * 10);
-    Serial.print(" ");  //Print base line at zero
-    Serial.print(totalCounts * 30);
-    //    Serial.print(" ");  //Print base line at zero
-    //    Serial.print(analogRead(A0));
+    Serial.print(fanPWMvalue * 10);  //Scale by 10 for ploting visibility.
+    Serial.print(" ");  //Prints a base line at zero
+    Serial.print(totalCounts * 30);  //This converts the fan two pulses per revolution into RPM.
     Serial.println();
   }
 
-  //Lets ramp the PWM
-  //Auto Increment every nextINCperiod
-  //  autoIncerment = true; // set for
+  //If AutoIncrement, then ramp every nextINCperiod
   if (autoIncerment && (((millis() - lastINCtime) > nextINCperiod) || (millis() < lastINCtime)) ) {
     if (fanPWMvalue < 256) {
       fanPWMvalue = fanPWMvalue + 10;
-      //updateFanPWM(String(fanPWMvalue));
       updatelinearFanPWM(String(fanPWMvalue));
     }
     lastINCtime = millis();
@@ -100,7 +72,7 @@ void loop()
   // Get user input, a string when a newline arrives:
   //Manages the state of auto incrementing.
   if (stringComplete) {
-//    Serial.println(inputString);
+    //    Serial.println(inputString);
     if (inputString.toInt() < 0) {
       autoIncerment = false; // set for
       //      Serial.println("Set auto increment false");
@@ -109,7 +81,6 @@ void loop()
       autoIncerment = true; // set for
       //      Serial.println("Set auto increment true");
     } else {
-      //updateFanPWM(inputString);
       updatelinearFanPWM(inputString);
     }
     inputString = "";
@@ -118,7 +89,10 @@ void loop()
 }//end of loop()
 
 
-//=================================================================
+//================= FUNCTIONS ===================================
+/*
+  Frequency counter functions
+*/
 void startCount(unsigned int period)
 {
   finishedCount = false;
@@ -178,3 +152,23 @@ void serialEvent() {
     }
   }
 }
+
+/*
+  Linearize the fan (as measure by the Tachometer output)
+  Set the fan value taking into account the inversion in the hardware
+  And map over the range where fan is linear.
+*/
+void updatelinearFanPWM(String inputString) {
+  int fanPWMset = 0;
+  int fanPWMLINValue = 0;
+  const int LOWER_RPM = 70; //Empircaly determined for 92mm fan. Linear tach starts here.
+
+  //Floor and ceiling on PWM value.
+  fanPWMvalue = inputString.toInt();
+  fanPWMvalue = max(fanPWMvalue, 0);
+  fanPWMvalue = min(fanPWMvalue, 255);
+  //Lineariz the range.
+  fanPWMLINValue = map(fanPWMvalue, 0, 255, LOWER_RPM, 255); //Map to linear range.
+  fanPWMset = 255 - fanPWMLINValue;    //Inverted PWM sense because of transistor on GPIO output.
+  analogWrite(FAN_PIN, fanPWMset);  //To Fan PWM.
+}//end update fan pwm
